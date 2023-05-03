@@ -1,99 +1,182 @@
-from math import log
-from re import compile
-from urllib.parse import urlparse
-from socket import gethostbyname
-import pandas as pd
+import requests
+import socket
+
+def get_len(url: str):
+    return len(url)
+
+def count_dots(url: str):
+    return url.count('.')
+
+def get_hostname(url):
+    # Remove the scheme from the URL
+    if "://" in url:
+        url = url.split("://")[1]
+
+    # Split the URL by slashes
+    url_parts = url.split("/")
+
+    # The hostname is the first part of the URL
+    hostname = url_parts[0]
+
+    return hostname
+
+def count_subdomains(hostname: str):
+    # Split the hostname by dots
+    parts = hostname.split(".")
+
+    # The number of subdomains is equal to the number of parts minus one
+    num_subdomains = len(parts) - 1
+
+    return num_subdomains
+
+def count_slash(url: str):
+    return url.count('/')
+
+def count_dash(url: str):
+    return url.count('-')
 
 
-class LexicalURLFeature:
-    def __init__(self, url):
-        self.description = 'blah'
-        self.url = url
-        self.urlparse = urlparse(self.url)
-        self.host = self.__get_ip()
+def count_dash_hostname(url: str):
+    hostname = get_hostname(url)
 
-    def __get_entropy(self, text):
-        text = text.lower()
-        probs = [text.count(c) / len(text) for c in set(text)]
-        entropy = -sum([p * log(p) / log(2.0) for p in probs])
-        return entropy
+    return hostname.count('-')
 
-    def __get_ip(self):
-        try:
-            ip = self.urlparse.netloc if self.url_host_is_ip(
-            ) else gethostbyname(self.urlparse.netloc)
-            return ip
-        except:
-            return None
+def check_at_symbol(url: str):
+    return '@' in url
 
-    # extract lexical features
-    def url_scheme(self):
-        print(self.url)
-        print(self.urlparse)
-        return self.urlparse.scheme
+def check_tilde_symbol(url: str):
+    return '~' in url
 
-    def url_length(self):
-        return len(self.url)
+def count_underscore(url: str):
+    return url.count('_')
 
-    def url_path_length(self):
-        return len(self.urlparse.path)
+def count_percent(url: str):
+    return url.count('%')
 
-    def url_host_length(self):
-        return len(self.urlparse.netloc)
+def count_query_components(url):
+    # Find the start of the query string
+    query_start = url.find("?")
 
-    def url_host_is_ip(self):
-        host = self.urlparse.netloc
-        pattern = compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-        match = pattern.match(host)
-        return match is not None
+    if query_start == -1:
+        # There are no query components in the URL
+        return 0
 
-    def url_has_port_in_string(self):
-        has_port = self.urlparse.netloc.split(':')
-        return len(has_port) > 1 and has_port[-1].isdigit()
+    # Extract the query string from the URL
+    query_string = url[query_start+1:]
 
-    def number_of_digits(self):
-        digits = [i for i in self.url if i.isdigit()]
-        return len(digits)
+    # Split the query string into components
+    query_components = query_string.split("&")
 
-    def number_of_parameters(self):
-        params = self.urlparse.query
-        return 0 if params == '' else len(params.split('&'))
+    # Count the number of query components
+    num_query_components = len(query_components)
 
-    def number_of_fragments(self):
-        frags = self.urlparse.fragment
-        return len(frags.split('#')) - 1 if frags == '' else 0
+    return num_query_components
 
-    def is_encoded(self):
-        return '%' in self.url.lower()
+def count_ampersand(url: str):
+    return url.count('&')
 
-    def num_encoded_char(self):
-        encs = [i for i in self.url if i == '%']
-        return len(encs)
+def count_hash(url: str):
+    return url.count('#')
 
-    def url_string_entropy(self):
-        return self.__get_entropy(self.url)
+def count_digits(url: str):
+    num_digits = 0
+    for char in url:
+        if char.isdigit():
+            num_digits += 1
 
-    def number_of_subdirectories(self):
-        d = self.urlparse.path.split('/')
-        return len(d)
+    return num_digits
 
-    def number_of_periods(self):
-        periods = [i for i in self.url if i == '.']
-        return len(periods)
+def check_no_Https(url: str):
+    req = requests.get(url).url
+    return req.startswith('https')
 
-    def has_client_in_string(self):
-        return 'client' in self.url.lower()
-
-    def has_admin_in_string(self):
-        return 'admin' in self.url.lower()
-
-    def has_server_in_string(self):
-        return 'server' in self.url.lower()
-
-    def has_login_in_string(self):
-        return 'login' in self.url.lower()
-
-    def get_tld(self):
-      return self.urlparse.netloc.split('.')[-1].split(':')[0]
+def check_IP_address(url: str):
+    ip = socket.gethostbyname(url)
+    return ip in url
 
 
+def is_tld_used_in_subdomain(url: str):
+    hostname = url.split("//")[-1].split("/")[0]
+    domain_parts = hostname.split(".")
+    subdomain = domain_parts[0]
+    tld = domain_parts[-1]
+    cctld = domain_parts[-2] if len(domain_parts) > 2 else ""
+
+    # Check if the TLD or ccTLD is used in the subdomain
+    return subdomain.endswith("." + tld) or subdomain.endswith("." + cctld)
+
+
+def is_tld_used_in_link(url: str):
+    # Extract the domain and path from the URL
+    domain = url.split("//")[-1].split("/")[0]
+    path = url.split("//")[-1][len(domain):]
+
+    # Extract the TLD and ccTLD from the domain
+    tld = domain.split(".")[-1]
+    cctld = domain.split(".")[-2] if len(domain.split(".")) > 1 else ""
+
+    # Check if the TLD or ccTLD is used in the link
+    return tld in path or cctld in path
+
+
+def is_https_disordered(url: str):
+    # Extract the domain from the URL
+    domain = url.split("//")[-1].split("/")[0]
+
+    # Check if the letters "https" are disordered in the domain
+    return "https" in domain and domain.index("https") != domain.index("h") + 1
+
+def get_hostname_lenght(url: str):
+    hostname = get_hostname(url)
+
+    return len(hostname)
+
+
+def get_path_length(url: str):
+    # Find the index of the first slash after the domain
+    domain_end_index = url.index("//") + 2
+    uri_start_index = url.index("/", domain_end_index)
+
+    # Find the index of the query string or fragment identifier, if present
+    query_index = url.find("?")
+    fragment_index = url.find("#")
+
+    # Determine the end index of the path
+    if query_index != -1 and (fragment_index == -1 or query_index < fragment_index):
+        path_end_index = query_index
+    elif fragment_index != -1:
+        path_end_index = fragment_index
+    else:
+        path_end_index = len(url)
+
+    # Extract the path from the URL and return its length
+    path = url[uri_start_index:path_end_index]
+    return len(path)
+
+
+def get_query_length(url):
+    # Find the index of the query string, if present
+    query_start_index = url.find("?")
+    if query_start_index == -1:
+        # No query string found
+        return 0
+
+    # Find the index of the fragment identifier, if present
+    fragment_index = url.find("#")
+
+    # Determine the end index of the query string
+    if fragment_index != -1:
+        query_end_index = fragment_index
+    else:
+        query_end_index = len(url)
+
+    # Extract the query string from the URL and return its length
+    query = url[query_start_index+1:query_end_index]
+    return len(query)
+
+
+def check_double_slash(url: str):
+    return '//' in url
+
+if __name__ == '__main__':
+    print("hello")

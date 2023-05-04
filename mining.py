@@ -1,5 +1,7 @@
 import requests
 import socket
+from urllib.parse import urlparse
+
 
 def get_len(url: str):
     return len(url)
@@ -53,7 +55,7 @@ def count_underscore(url: str):
 def count_percent(url: str):
     return url.count('%')
 
-def count_query_components(url):
+def count_query_components(url: str):
     # Find the start of the query string
     query_start = url.find("?")
 
@@ -87,13 +89,24 @@ def count_digits(url: str):
     return num_digits
 
 def check_no_Https(url: str):
-    req = requests.get(url).url
-    return req.startswith('https')
+    if not url.startswith(('http://', 'https://', 'ftp://')):
+        url = 'http://' + url
+
+    try:
+        req = requests.get(url).url
+        return req.startswith('https')
+
+    except requests.exceptions.ConnectionError:
+        return True
+    
 
 def check_IP_address(url: str):
-    ip = socket.gethostbyname(url)
-    return ip in url
+    try:
+        ip = socket.gethostbyname(url)
+        return ip in url
 
+    except socket.error:
+        return None
 
 def is_tld_used_in_subdomain(url: str):
     hostname = url.split("//")[-1].split("/")[0]
@@ -133,46 +146,14 @@ def get_hostname_lenght(url: str):
 
 
 def get_path_length(url: str):
-    # Find the index of the first slash after the domain
-    domain_end_index = url.index("//") + 2
-    uri_start_index = url.index("/", domain_end_index)
-
-    # Find the index of the query string or fragment identifier, if present
-    query_index = url.find("?")
-    fragment_index = url.find("#")
-
-    # Determine the end index of the path
-    if query_index != -1 and (fragment_index == -1 or query_index < fragment_index):
-        path_end_index = query_index
-    elif fragment_index != -1:
-        path_end_index = fragment_index
-    else:
-        path_end_index = len(url)
-
-    # Extract the path from the URL and return its length
-    path = url[uri_start_index:path_end_index]
-    return len(path)
+    parsed_url = urlparse(url)
+    return len(parsed_url.path)
 
 
 def get_query_length(url):
-    # Find the index of the query string, if present
-    query_start_index = url.find("?")
-    if query_start_index == -1:
-        # No query string found
-        return 0
+    parsed_url = urlparse(url)
+    return len(parsed_url.query)
 
-    # Find the index of the fragment identifier, if present
-    fragment_index = url.find("#")
-
-    # Determine the end index of the query string
-    if fragment_index != -1:
-        query_end_index = fragment_index
-    else:
-        query_end_index = len(url)
-
-    # Extract the query string from the URL and return its length
-    query = url[query_start_index+1:query_end_index]
-    return len(query)
 
 
 def check_double_slash(url: str):

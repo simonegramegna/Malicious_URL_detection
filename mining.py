@@ -107,7 +107,7 @@ def check_IP_address(url: str):
         return ip in url
 
     except socket.error:
-        return None
+        return str(None)
 
 def is_tld_used_in_subdomain(url: str):
     hostname = url.split("//")[-1].split("/")[0]

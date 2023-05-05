@@ -102,7 +102,8 @@ def check_no_Https(url: str):
 
 def check_IP_address(url: str):
     try:
-        ip = socket.gethostbyname(url)
+        host = get_hostname(url)
+        ip = socket.gethostbyname(host)
         return ip in url
 
     except socket.error:

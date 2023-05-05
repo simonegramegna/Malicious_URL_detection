@@ -1,7 +1,9 @@
 import requests
 import socket
 from urllib.parse import urlparse
-
+import os
+import pandas as pd
+import tldextract
 
 def get_len(url: str):
     return len(url)
@@ -113,6 +115,7 @@ def check_IP_address(url: str):
     except socket.error:
         return str(None)
 
+
 def is_tld_used_in_subdomain(url: str):
     hostname = url.split("//")[-1].split("/")[0]
     domain_parts = hostname.split(".")
@@ -137,16 +140,25 @@ def is_tld_used_in_link(url: str):
     return tld in path or cctld in path
 
 
-def is_https_disordered(url: str):
-    # Extract the domain from the URL
-    domain = url.split("//")[-1].split("/")[0]
+def is_https_disordered(url: str, flag: bool):
+    if flag == False:
+        parsed_url = urlparse(url)
 
-    # Check if the letters "https" are disordered in the domain
-    return "https" in domain and domain.index("https") != domain.index("h") + 1
+        hostname = parsed_url.hostname
+        try:
+            https_index = hostname.rfind('https')
+
+            if https_index != -1:
+                return True
+            else:
+                return False
+        except AttributeError:
+            return None
+
+    return None
 
 def get_hostname_lenght(url: str):
     hostname = get_hostname(url)
-
     return len(hostname)
 
 
@@ -160,9 +172,23 @@ def get_query_length(url):
     return len(parsed_url.query)
 
 
-
 def check_double_slash(url: str):
     return '//' in url
 
 if __name__ == '__main__':
-    print("hello")
+    dataset_folder = "\datasets"
+    dataset_file = "\malicious_urls.csv"
+
+    if os.name != 'nt':
+        dataset_folder = "/datasets"
+        dataset_file = "/malicious_urls.csv"
+
+    dataset_dir = os.path.dirname(os.path.abspath( __file__)) + dataset_folder + dataset_file
+    df = pd.read_csv(dataset_dir)
+
+    features_df = pd.DataFrame({'numDots':[], 'subdomainLevel':[], 'pathLevel':[], 'urlLength':[],
+                                'numDash':[], 'numDashHostname':[], 'atSymbol':[], 'tildeSymbol':[],
+                                'numUnderscore':[], 'numPercent':[], 'numQueryComponents':[], 'numApersand':[],
+                                'numHash':[], 'numNumericChars':[], 'noHttps':[], 'ipAddress':[], 
+                                'domainInSubdomains':[], 'domainInPaths':[], 'httpsInHostname': [], 'hostNameLength': [],
+                                'pathLength':[], 'queryLength': [], 'doubleSlash': []})

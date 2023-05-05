@@ -37,7 +37,7 @@ for i, row in df.iterrows():
     cip = check_IP_address(url_i)
     istld = is_tld_used_in_subdomain(url_i)
     islink = is_tld_used_in_link(url_i)
-    idd = is_https_disordered(url_i)
+    idd = is_https_disordered(url_i, chhtps)
     glh = get_hostname_lenght(url_i)
     gpl = get_path_length(url_i)
     gql = get_query_length(url_i)

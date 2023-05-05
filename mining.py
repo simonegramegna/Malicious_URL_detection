@@ -22,8 +22,9 @@ def get_hostname(url):
 
     return hostname
 
-def count_subdomains(hostname: str):
+def count_subdomains(url: str):
     # Split the hostname by dots
+    hostname = get_hostname(url)
     parts = hostname.split(".")
 
     # The number of subdomains is equal to the number of parts minus one
@@ -93,10 +94,13 @@ def check_no_Https(url: str):
         url = 'http://' + url
 
     try:
-        req = requests.get(url).url
+        req = requests.get(url, timeout=1).url
         return req.startswith('https')
 
     except requests.exceptions.ConnectionError:
+        return True
+    
+    except requests.exceptions.ReadTimeout:
         return True
     
 

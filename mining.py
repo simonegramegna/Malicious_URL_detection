@@ -1,9 +1,10 @@
 import requests
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 import os
 import pandas as pd
-import tldextract
+import warnings
+
 
 def get_len(url: str):
     return len(url)
@@ -23,6 +24,12 @@ def get_hostname(url):
     hostname = url_parts[0]
 
     return hostname
+
+def get_path_level(url: str):
+    path = urlsplit(url).path
+
+    return len(path.split('/'))
+
 
 def count_subdomains(url: str):
     # Split the hostname by dots
@@ -157,7 +164,7 @@ def is_https_disordered(url: str, flag: bool):
 
     return None
 
-def get_hostname_lenght(url: str):
+def get_hostname_length(url: str):
     hostname = get_hostname(url)
     return len(hostname)
 
@@ -175,15 +182,25 @@ def get_query_length(url):
 def check_double_slash(url: str):
     return '//' in url
 
+def get_type_url(url: str):
+    if url == 'benign':
+        return 0
+    else:
+        return 1
+
 if __name__ == '__main__':
-    dataset_folder = "\datasets"
-    dataset_file = "\malicious_urls.csv"
+    dataset_folder = "\\datasets"
+    dataset_file = "\\malicious_url_balanced.csv"
+    features_df_dataset = "\\url_features.csv"
 
     if os.name != 'nt':
         dataset_folder = "/datasets"
-        dataset_file = "/malicious_urls.csv"
+        dataset_file = "/malicious_url_balanced.csv"
+        features_df_dataset = "/url_features.csv"
 
     dataset_dir = os.path.dirname(os.path.abspath( __file__)) + dataset_folder + dataset_file
+    features_dataset_dir = os.path.dirname(os.path.abspath(__file__)) + dataset_folder + features_df_dataset
+
     df = pd.read_csv(dataset_dir)
 
     features_df = pd.DataFrame({'numDots':[], 'subdomainLevel':[], 'pathLevel':[], 'urlLength':[],
@@ -191,4 +208,46 @@ if __name__ == '__main__':
                                 'numUnderscore':[], 'numPercent':[], 'numQueryComponents':[], 'numApersand':[],
                                 'numHash':[], 'numNumericChars':[], 'noHttps':[], 'ipAddress':[], 
                                 'domainInSubdomains':[], 'domainInPaths':[], 'httpsInHostname': [], 'hostNameLength': [],
-                                'pathLength':[], 'queryLength': [], 'doubleSlash': []})
+                                'pathLength':[], 'queryLength': [], 'doubleSlash': [], 'type': []})
+    
+    for index, row in df.iterrows():
+        warnings.filterwarnings('ignore')
+
+        url_i = row['url']
+        url_type_i = row['type']
+
+        path_level = get_path_level(url_i)
+        len_url = get_len(url_i)
+        dots = count_dots(url_i)
+        hostname = get_hostname(url_i)
+        subdomains = count_subdomains(url_i)
+        slash = count_slash(url_i)
+        dash = count_dash(url_i)
+        dash_hostname = count_dash_hostname(url_i)
+        at_symbol = check_at_symbol(url_i)
+        tile_symbol = check_tilde_symbol(url_i)
+        undersocres = count_underscore(url_i)
+        percents = count_percent(url_i)
+        query_components = count_query_components(url_i)
+        ampersands = count_ampersand(url_i)
+        hashes = count_hash(url_i)
+        digits = count_digits(url_i)
+        no_https = check_no_Https(url_i)
+        check_ip = check_IP_address(url_i)
+        is_tld = is_tld_used_in_subdomain(url_i)
+        is_link = is_tld_used_in_link(url_i)
+        https_disordered = is_https_disordered(url_i,no_https)
+        hostname_length = get_hostname_length(url_i)
+        path_length = get_path_length(url_i)
+        query_length = get_query_length(url_i)
+        double_slash = check_double_slash(url_i)
+        url_type = get_type_url(url_type_i)
+
+        url_i_features = [dots, subdomains, path_level, len_url, dash, dash_hostname, 
+                            at_symbol, tile_symbol, undersocres, percents, query_components,
+                                ampersands, hashes, digits, no_https, check_ip, is_tld, is_link, 
+                                    https_disordered, hostname_length, path_length, query_length, double_slash, url_type]
+        
+        print(url_i_features)
+        features_df = features_df.append(pd.Series(url_i_features, index=features_df.columns), ignore_index = True)
+        features_df.to_csv(features_dataset_dir)

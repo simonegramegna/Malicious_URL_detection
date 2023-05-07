@@ -1,253 +1,286 @@
 import requests
-import socket
+import tldextract
 from urllib.parse import urlparse, urlsplit
 import os
 import pandas as pd
 import warnings
 
 
-def get_len(url: str):
-    return len(url)
-
+#
+# Number of character '.' in URL
+# Return: numeric
+#
 def count_dots(url: str):
     return url.count('.')
 
-def get_hostname(url):
-    # Remove the scheme from the URL
-    if "://" in url:
-        url = url.split("://")[1]
 
-    # Split the URL by slashes
-    url_parts = url.split("/")
+#
+# Number of subdomain levels
+# Return: numeric
+#
+def count_subdomains(url: str):
+    subdomain = tldextract.extract(url).subdomain
+    return len(subdomain.split('.')) if len(subdomain) != 0 else 0
 
-    # The hostname is the first part of the URL
-    hostname = url_parts[0]
 
-    return hostname
-
+#
+# The depth of URL
+# Return: numeric
+#
 def get_path_level(url: str):
     path = urlsplit(url).path
+    path = path[1:] if len(path) > 0 and path[0] == '/' else path
+    path = path[:-1] if len(path) > 0 and path[-1] == '/' else path
+    return len(path.split('/')) if len(path) > 0 else 0
 
-    return len(path.split('/'))
+
+#
+# The length of URL
+# Return: numeric
+#
+def get_len(url: str):
+    return len(url)
 
 
-def count_subdomains(url: str):
-    # Split the hostname by dots
-    hostname = get_hostname(url)
-    parts = hostname.split(".")
-
-    # The number of subdomains is equal to the number of parts minus one
-    num_subdomains = len(parts) - 1
-
-    return num_subdomains
-
-def count_slash(url: str):
-    return url.count('/')
-
+#
+# Number of the dash character '-' in URL
+# Return: numeric
+#
 def count_dash(url: str):
     return url.count('-')
 
 
-def count_dash_hostname(url: str):
-    hostname = get_hostname(url)
-
-    return hostname.count('-')
-
+#
+# There exists a character '@' in URL
+# Return: boolean
+#
 def check_at_symbol(url: str):
     return '@' in url
 
+
+#
+# There exists a character '~' in URL
+# Return: boolean
+#
 def check_tilde_symbol(url: str):
     return '~' in url
 
+
+#
+# Number of the underscore character '_' in URL
+# Return: numeric
+#
 def count_underscore(url: str):
     return url.count('_')
 
+
+#
+# Number of the percent character '%' in URL
+# Return: numeric
+#
 def count_percent(url: str):
     return url.count('%')
 
+
+#
+# Number of the query components
+# Return: numeric
+#
 def count_query_components(url: str):
-    # Find the start of the query string
-    query_start = url.find("?")
+    query_components = urlparse(url).query.split("&") if len(urlparse(url).query) > 0 else ''
+    return len(query_components)
 
-    if query_start == -1:
-        # There are no query components in the URL
-        return 0
 
-    # Extract the query string from the URL
-    query_string = url[query_start+1:]
-
-    # Split the query string into components
-    query_components = query_string.split("&")
-
-    # Count the number of query components
-    num_query_components = len(query_components)
-
-    return num_query_components
-
+#
+# Number of the ampersand character '&' in URL
+# Return: numeric
+#
 def count_ampersand(url: str):
     return url.count('&')
 
+
+#
+# Number of the hash character '#' in URL
+# Return: numeric
+#
 def count_hash(url: str):
     return url.count('#')
 
+
+#
+# Number of the numeric character
+# Return: numeric
+#
 def count_digits(url: str):
-    num_digits = 0
-    for char in url:
-        if char.isdigit():
-            num_digits += 1
+    return sum(c.isdigit() for c in url)
 
-    return num_digits
 
-def check_no_Https(url: str):
-    if not url.startswith(('http://', 'https://', 'ftp://')):
-        url = 'http://' + url
-
+#
+# Check if there exists a HTTPS in website URL
+# Return: boolean
+#
+def check_Https(url: str):
     try:
         req = requests.get(url, timeout=1).url
         return req.startswith('https')
+    except Exception as e:
+        return False
 
-    except requests.exceptions.ConnectionError:
-        return True
-    
-    except requests.exceptions.ReadTimeout:
-        return True
-    
 
+#
+# Check if the IP address is used in the hostname of the website URL
+# Return: boolean
+#
 def check_IP_address(url: str):
-    try:
-        host = get_hostname(url)
-        ip = socket.gethostbyname(host)
-        return ip in url
-
-    except socket.error:
-        return str(None)
+    return not bool(sum(not c.isdigit() and c != '.' for c in tldextract.extract(url).domain))
 
 
-def is_tld_used_in_subdomain(url: str):
-    hostname = url.split("//")[-1].split("/")[0]
-    domain_parts = hostname.split(".")
-    subdomain = domain_parts[0]
-    tld = domain_parts[-1]
-    cctld = domain_parts[-2] if len(domain_parts) > 2 else ""
-
-    # Check if the TLD or ccTLD is used in the subdomain
-    return subdomain.endswith("." + tld) or subdomain.endswith("." + cctld)
+#
+# Check if TLD is used as a part of the subdomain in website URL
+# Return: boolean
+#
+def check_tld_in_subdomain(url: str):
+    res = tldextract.extract(url)
+    return res.domain in res.subdomain
 
 
-def is_tld_used_in_link(url: str):
-    # Extract the domain and path from the URL
-    domain = url.split("//")[-1].split("/")[0]
-    path = url.split("//")[-1][len(domain):]
-
-    # Extract the TLD and ccTLD from the domain
-    tld = domain.split(".")[-1]
-    cctld = domain.split(".")[-2] if len(domain.split(".")) > 1 else ""
-
-    # Check if the TLD or ccTLD is used in the link
-    return tld in path or cctld in path
+#
+# Check if TLD is used in the link of website URL
+# Return: boolean
+#
+def check_tld_in_path(url: str):
+    return tldextract.extract(url).domain in urlsplit(url).path
 
 
-def is_https_disordered(url: str, flag: bool):
-    if flag == False:
-        parsed_url = urlparse(url)
+#
+# Check if HTTPS is disordered in the hostname of website URL
+# Return: boolean
+#
+def check_https_in_hostname(url: str):
+    return 'https' in urlsplit(url).netloc
 
-        hostname = parsed_url.hostname
-        try:
-            https_index = hostname.rfind('https')
 
-            if https_index != -1:
-                return True
-            else:
-                return False
-        except AttributeError:
-            return None
-
-    return None
-
+#
+# Length of hostname
+# Return: numeric
+#
 def get_hostname_length(url: str):
-    hostname = get_hostname(url)
-    return len(hostname)
+    return len(urlsplit(url).netloc)
 
 
+#
+# Length of the link path
+# Return: numeric
+#
 def get_path_length(url: str):
-    parsed_url = urlparse(url)
-    return len(parsed_url.path)
+    return len(urlparse(url).path)
 
 
+#
+# Length of the query string
+# Return: numeric
+#
 def get_query_length(url):
-    parsed_url = urlparse(url)
-    return len(parsed_url.query)
+    return len(urlparse(url).query)
 
 
-def check_double_slash(url: str):
-    return '//' in url
+#
+# There exists a slash '//' in the link path
+# Return: boolean
+#
+def check_double_slash_in_path(url: str):
+    return '//' in urlparse(url).path
 
-def get_type_url(url: str):
-    if url == 'benign':
-        return 0
-    else:
-        return 1
+
+#
+# Compute the lexical features by URL
+# Return: Pandas.Series
+#
+def get_lexical_features(url, label):
+    if not url.startswith(('http://', 'https://', 'ftp://')):
+        url = 'http://' + url
+    return [
+        url,
+        count_dots(url),
+        count_subdomains(url),
+        get_path_level(url),
+        get_len(url),
+        count_dash(url),
+        check_at_symbol(url),
+        check_tilde_symbol(url),
+        count_underscore(url),
+        count_percent(url),
+        count_query_components(url),
+        count_ampersand(url),
+        count_hash(url),
+        count_digits(url),
+        check_Https(url),
+        check_IP_address(url),
+        check_tld_in_subdomain(url),
+        check_tld_in_path(url),
+        check_https_in_hostname(url),
+        get_hostname_length(url),
+        get_path_length(url),
+        get_query_length(url),
+        check_double_slash_in_path(url),
+        label
+    ]
 
 if __name__ == '__main__':
     dataset_folder = "\\datasets"
-    dataset_file = "\\malicious_url_balanced.csv"
-    features_df_dataset = "\\url_features.csv"
+    dataset_file = "\\urls_sampled.csv"
+    features_df_dataset = "\\urls_with_features.csv"
 
     if os.name != 'nt':
         dataset_folder = "/datasets"
-        dataset_file = "/malicious_url_balanced.csv"
-        features_df_dataset = "/url_features.csv"
+        dataset_file = "/urls_sampled.csv"
+        features_df_dataset = "/urls_with_features.csv"
 
     dataset_dir = os.path.dirname(os.path.abspath( __file__)) + dataset_folder + dataset_file
     features_dataset_dir = os.path.dirname(os.path.abspath(__file__)) + dataset_folder + features_df_dataset
 
     df = pd.read_csv(dataset_dir)
 
-    features_df = pd.DataFrame({'numDots':[], 'subdomainLevel':[], 'pathLevel':[], 'urlLength':[],
-                                'numDash':[], 'numDashHostname':[], 'atSymbol':[], 'tildeSymbol':[],
-                                'numUnderscore':[], 'numPercent':[], 'numQueryComponents':[], 'numApersand':[],
-                                'numHash':[], 'numNumericChars':[], 'noHttps':[], 'ipAddress':[], 
-                                'domainInSubdomains':[], 'domainInPaths':[], 'httpsInHostname': [], 'hostNameLength': [],
-                                'pathLength':[], 'queryLength': [], 'doubleSlash': [], 'type': []})
+    features_df = pd.DataFrame({
+        'url':[],
+        'numDots':[],
+        'subdomainLevel':[],
+        'pathLevel':[],
+        'urlLength':[],
+        'numDash':[], 
+        'atSymbol':[],
+        'tildeSymbol':[],
+        'numUnderscore':[],
+        'numPercent':[],
+        'numQueryComponents':[],
+        'numApersand':[],          
+        'numHash':[],
+        'numDigits':[],
+        'https':[],
+        'ipAddress':[], 
+        'domainInSubdomains':[],
+        'domainInPaths':[],
+        'httpsInHostname':[],
+        'hostnameLength':[],
+        'pathLength':[],
+        'queryLength':[],
+        'doubleSlash':[],
+        'type': []
+    })
     
     for index, row in df.iterrows():
         warnings.filterwarnings('ignore')
-
         url_i = row['url']
         url_type_i = row['type']
 
-        path_level = get_path_level(url_i)
-        len_url = get_len(url_i)
-        dots = count_dots(url_i)
-        hostname = get_hostname(url_i)
-        subdomains = count_subdomains(url_i)
-        slash = count_slash(url_i)
-        dash = count_dash(url_i)
-        dash_hostname = count_dash_hostname(url_i)
-        at_symbol = check_at_symbol(url_i)
-        tile_symbol = check_tilde_symbol(url_i)
-        undersocres = count_underscore(url_i)
-        percents = count_percent(url_i)
-        query_components = count_query_components(url_i)
-        ampersands = count_ampersand(url_i)
-        hashes = count_hash(url_i)
-        digits = count_digits(url_i)
-        no_https = check_no_Https(url_i)
-        check_ip = check_IP_address(url_i)
-        is_tld = is_tld_used_in_subdomain(url_i)
-        is_link = is_tld_used_in_link(url_i)
-        https_disordered = is_https_disordered(url_i,no_https)
-        hostname_length = get_hostname_length(url_i)
-        path_length = get_path_length(url_i)
-        query_length = get_query_length(url_i)
-        double_slash = check_double_slash(url_i)
-        url_type = get_type_url(url_type_i)
-
-        url_i_features = [dots, subdomains, path_level, len_url, dash, dash_hostname, 
-                            at_symbol, tile_symbol, undersocres, percents, query_components,
-                                ampersands, hashes, digits, no_https, check_ip, is_tld, is_link, 
-                                    https_disordered, hostname_length, path_length, query_length, double_slash, url_type]
+        if (index % 500 == 0):
+            print('Rows processed: ',index)
+        try:
+            features_df.loc[index] = get_lexical_features(url_i, url_type_i)
+        except Exception as e:
+            print('>>>>>>> EXCEPTION: ',e)
+            print('>>>>>>> EXCEPTION URL: ',url_i)
+            print('>>>>>>> EXCEPTION INDEX: ',index)
+            continue
         
-        print(url_i_features)
-        features_df = features_df.append(pd.Series(url_i_features, index=features_df.columns), ignore_index = True)
-        features_df.to_csv(features_dataset_dir)
+    features_df.to_csv(features_dataset_dir, index = False)

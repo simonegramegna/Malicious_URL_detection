@@ -6,5 +6,12 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# images
+*.png
+
+*.jpeg
+
+*.jpg
+
 
 .DS_Store
